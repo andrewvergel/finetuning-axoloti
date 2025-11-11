@@ -497,30 +497,63 @@ configs/mistral-lora.yml
 Example LoRA training config:
 
 ```yaml
-base_model: meta-llama/Llama-3-8B-Instruct
+base_model: mistralai/Mistral-7B-Instruct-v0.3
 adapter: lora
+
 datasets:
   - path: data/train.jsonl
     type: alpaca
+
 dataset_format: instruction
+
 output_dir: ./outputs/mistral-lora
-train:
-  max_steps: 200
-  micro_batch_size: 1
-  gradient_accumulation_steps: 8
-  learning_rate: 2e-4
-  lora_r: 16
-  lora_alpha: 32
-  lora_dropout: 0.05
+
+micro_batch_size: 1
+gradient_accumulation_steps: 8
+max_steps: 200
+learning_rate: 2e-4
+
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+# Critical: Specify target modules for LoRA injection
+target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
 ```
 
 > **Notes:**
 > - The `datasets` field must be a list (plural). Each dataset entry should have a `path` and `type`. For instruction/response format, use `type: alpaca`.
 > - **Dataset Format Requirement:** When using `type: alpaca`, your dataset **must** have `instruction`, `input`, and `output` fields (not `response`). The `input` field can be an empty string `""` if not needed.
+> - **`target_modules` is Required:** Axolotl cannot autodetect which layers to apply LoRA on for most models. You **must** specify `target_modules` to avoid the error: `ValueError: No target_modules passed but also no target_parameters found.`
+> - **Different models require different target modules** (see table below)
 > - Axolotl requires at least two of these batch parameters: `micro_batch_size`, `gradient_accumulation_steps`, or `batch_size`. The config above uses `micro_batch_size` and `gradient_accumulation_steps`.
 > - `micro_batch_size: 1` means process 1 example at a time per GPU
 > - `gradient_accumulation_steps: 8` means accumulate gradients over 8 steps before updating weights (effective batch size = 1 × 8 = 8)
 > - You can change `base_model` to any supported model (e.g., `mistralai/Mistral-7B-Instruct-v0.3`, `meta-llama/Llama-3-8B-Instruct`, etc.)
+
+### Target Modules by Model Family
+
+Different model architectures use different layer names. Here are the common `target_modules` for popular models:
+
+| Model Family | Target Modules |
+|--------------|----------------|
+| **LLaMA / Llama-2 / Llama-3** | `q_proj`, `k_proj`, `v_proj`, `o_proj` |
+| **Mistral / Mixtral** | `q_proj`, `k_proj`, `v_proj`, `o_proj` |
+| **Falcon** | `query_key_value` |
+| **GPT-J / GPT-NeoX** | `q_proj`, `v_proj`, `k_proj`, `out_proj` |
+| **Phi** | `q_proj`, `k_proj`, `v_proj`, `dense` |
+| **Gemma** | `q_proj`, `k_proj`, `v_proj`, `o_proj` |
+
+> **Tip:** If you're unsure which modules to use for your model, check the model's architecture documentation or inspect the model's layer names using:
+> ```python
+> from transformers import AutoModel
+> model = AutoModel.from_pretrained("model-name")
+> print([name for name, _ in model.named_modules()])
+> ```
 
 ---
 
@@ -535,6 +568,28 @@ The trained adapter will be saved in:
 ```
 outputs/mistral-lora/
 ```
+
+### Common Training Errors and Solutions
+
+**Error: `ValueError: No target_modules passed but also no target_parameters found.`**
+
+This error occurs when Axolotl cannot determine which layers to apply LoRA on. **Solution:** Add `target_modules` to your config file (see the config example above). Different models require different target modules - refer to the "Target Modules by Model Family" table in Section 7.
+
+**Error: `KeyError: 'output'` or dataset format errors**
+
+This means your dataset doesn't match the expected format. **Solution:** When using `type: alpaca`, ensure each line has `instruction`, `input`, and `output` fields (not `response`). See Section 6 for the correct dataset format.
+
+**Error: `At least two of micro_batch_size, gradient_accumulation_steps, batch_size must be set`**
+
+Axolotl requires at least two batch-related parameters. **Solution:** Ensure your config has both `micro_batch_size` and `gradient_accumulation_steps` set (see config example above).
+
+**Error: Out of Memory (OOM)**
+
+If you encounter GPU memory errors, try:
+- Reducing `micro_batch_size` to 1
+- Increasing `gradient_accumulation_steps` to maintain effective batch size
+- Using quantization: Add `load_in_4bit: true` or `load_in_8bit: true` to your config
+- Using a smaller model or reducing `lora_r` (e.g., from 16 to 8)
 
 ---
 
