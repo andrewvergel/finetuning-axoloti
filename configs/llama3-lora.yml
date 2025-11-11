@@ -1,4 +1,4 @@
-base_model: meta-llama/Llama-3-8B-Instruct
+base_model: mistralai/Mistral-7B-Instruct-v0.3
 adapter: lora
 
 datasets:
@@ -7,15 +7,13 @@ datasets:
 
 dataset_format: instruction
 
-output_dir: ./outputs/llama3-lora
+output_dir: ./outputs/mistral-lora
 
-# ✅ Training settings must be top-level
-micro_batch_size: 1                     # batch per GPU
-gradient_accumulation_steps: 8          # to simulate larger batch
+micro_batch_size: 1
+gradient_accumulation_steps: 8
 max_steps: 200
 learning_rate: 2e-4
 
-# ✅ LoRA parameters
 lora_r: 16
 lora_alpha: 32
 lora_dropout: 0.05
