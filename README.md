@@ -485,7 +485,7 @@ Example (`train.jsonl`):
 Create a config file:
 
 ```
-configs/llama3-lora.yml
+configs/mistral-lora.yml
 ```
 
 Example LoRA training config:
@@ -497,7 +497,7 @@ datasets:
   - path: data/train.jsonl
     type: alpaca
 dataset_format: instruction
-output_dir: ./outputs/llama3-lora
+output_dir: ./outputs/mistral-lora
 train:
   max_steps: 200
   micro_batch_size: 1
@@ -519,13 +519,13 @@ train:
 ## 8. Run Training
 
 ```bash
-axolotl train configs/llama3-lora.yml
+axolotl train configs/mistral-lora.yml
 ```
 
 The trained adapter will be saved in:
 
 ```
-outputs/llama3-lora/
+outputs/mistral-lora/
 ```
 
 ---
@@ -544,7 +544,7 @@ outputs/llama3-lora/
 ### Run Inference
 
 ```bash
-axolotl inference configs/llama3-lora.yml
+axolotl inference configs/mistral-lora.yml
 ```
 
 ### Example Validation Prompts
@@ -621,7 +621,7 @@ How do I report a production incident?
 ## 10. Optional: Export LoRA to a Fully Merged Model
 
 ```bash
-axolotl merge-lora configs/llama3-lora.yml
+axolotl merge-lora configs/mistral-lora.yml
 ```
 
 ---
