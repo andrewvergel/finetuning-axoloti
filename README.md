@@ -14,6 +14,7 @@ Enable users to fine-tune any supported LLM using Axolotl from a clean environme
 This guide covers:
 - Environment setup on Linux (NVIDIA GPU required)
 - Installing Axolotl and dependencies
+- Configuring Hugging Face access for restricted models
 - Preparing a small example dataset
 - Running a LoRA fine-tuning experiment
 - Running inference using the fine-tuned model
@@ -443,7 +444,143 @@ axolotl fetch examples
 
 ---
 
-## 6. Create a Sample Dataset
+## 6. Configure Hugging Face Access
+
+Some models (like Llama 3, Llama 2) require authentication and license acceptance on Hugging Face before they can be downloaded. This section explains how to set up access.
+
+### Why This Is Needed
+
+When Axolotl tries to download a model like `meta-llama/Llama-3-8B-Instruct`, Hugging Face may return:
+
+```
+401 Unauthorized
+Repository Not Found: meta-llama/Llama-3-8B-Instruct
+```
+
+This happens because:
+- The model requires license acceptance
+- Your environment is not authenticated with Hugging Face
+- You need a valid Hugging Face token with access permissions
+
+### Step 1: Create a Hugging Face Token
+
+1. Go to [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+2. Click "New token"
+3. Give it a name (e.g., "axolotl-training")
+4. Select **Read** permission (this is sufficient for downloading models)
+5. Click "Generate token"
+6. **Copy the token** (you won't be able to see it again!)
+
+### Step 2: Login to Hugging Face
+
+Authenticate your environment using the Hugging Face CLI:
+
+```bash
+huggingface-cli login
+```
+
+When prompted, paste your token and press Enter. You should see:
+
+```
+Token is valid (permission: read).
+```
+
+### Step 3: Accept Model License (If Required)
+
+For models with restricted access (like Llama 3):
+
+1. Visit the model's page on Hugging Face:
+   - Llama 3: [https://huggingface.co/meta-llama/Llama-3-8B-Instruct](https://huggingface.co/meta-llama/Llama-3-8B-Instruct)
+   - Llama 2: [https://huggingface.co/meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf)
+
+2. Click the **"Agree and access repository"** button
+3. Accept the license terms
+4. Wait a few minutes for access to propagate
+
+### Step 4: Verify Access
+
+Verify that your authentication works and you can access the model:
+
+```bash
+# Check your Hugging Face username
+huggingface-cli whoami
+
+# Test model access (replace with your target model)
+python3 -c "from transformers import AutoConfig; print(AutoConfig.from_pretrained('meta-llama/Llama-3-8B-Instruct'))"
+```
+
+If this command succeeds without errors, you have access to the model.
+
+### Alternative: Use Public Models (No Authentication Required)
+
+If you want to skip authentication, you can use public models that don't require license acceptance:
+
+| Model | Hugging Face ID | Notes |
+|-------|----------------|-------|
+| **Mistral 7B Instruct** | `mistralai/Mistral-7B-Instruct-v0.3` | No authentication needed, excellent performance |
+| **Phi-3 Mini** | `microsoft/Phi-3-mini-4k-instruct` | Lightweight, fast, no authentication |
+| **TinyLlama** | `TinyLlama/TinyLlama-1.1B-Chat-v1.0` | Very small, good for testing |
+| **Gemma 2B** | `google/gemma-2b-it` | Google's Gemma, no authentication |
+
+To use a public model, simply change the `base_model` in your config file:
+
+```yaml
+base_model: mistralai/Mistral-7B-Instruct-v0.3  # No authentication needed
+# OR
+base_model: microsoft/Phi-3-mini-4k-instruct    # Lightweight alternative
+```
+
+### Troubleshooting Authentication Issues
+
+**Error: `401 Unauthorized` or `Repository Not Found`**
+
+1. **Verify you're logged in:**
+   ```bash
+   huggingface-cli whoami
+   ```
+   If this fails, run `huggingface-cli login` again.
+
+2. **Check token permissions:**
+   - Go to [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+   - Ensure your token has at least **Read** permission
+   - If needed, create a new token with Read permission
+
+3. **Verify license acceptance:**
+   - Visit the model's Hugging Face page
+   - Ensure you've clicked "Agree and access repository"
+   - Wait a few minutes after accepting for access to propagate
+
+4. **Test access programmatically:**
+   ```bash
+   python3 -c "from transformers import AutoConfig; AutoConfig.from_pretrained('meta-llama/Llama-3-8B-Instruct')"
+   ```
+
+**Error: `Token is invalid`**
+
+- Your token may have expired or been revoked
+- Create a new token and run `huggingface-cli login` again
+
+**Error: `Permission denied`**
+
+- Your token needs **Read** permission at minimum
+- Create a new token with Read permission and re-authenticate
+
+### Model Access Requirements Summary
+
+| Model Family | Authentication Required | License Acceptance Required |
+|--------------|------------------------|----------------------------|
+| **Llama 3** | ✅ Yes | ✅ Yes |
+| **Llama 2** | ✅ Yes | ✅ Yes |
+| **Mistral** | ❌ No | ❌ No |
+| **Phi-3** | ❌ No | ❌ No |
+| **Gemma** | ❌ No | ❌ No |
+| **TinyLlama** | ❌ No | ❌ No |
+
+> **Recommendation:** For quick testing and learning, start with **Mistral 7B Instruct** or **Phi-3 Mini** - they don't require authentication and work great for fine-tuning. You can switch to Llama 3 later once you have authentication set up.
+
+---
+
+## 7. Create a Sample Dataset
 
 Axolotl expects datasets in JSONL format. When using `type: alpaca` in the config, each line must follow the Alpaca format with three fields:
 
@@ -486,7 +623,9 @@ Example (`train.jsonl`):
 
 ---
 
-## 7. Training Configuration
+## 8. Training Configuration
+
+> **Prerequisite:** If you're using a model that requires authentication (like Llama 3 or Llama 2), make sure you've completed Section 6 (Configure Hugging Face Access) first. Otherwise, you'll get a `401 Unauthorized` error when training starts.
 
 Create a config file:
 
@@ -513,12 +652,13 @@ gradient_accumulation_steps: 8
 max_steps: 200
 learning_rate: 2e-4
 
+# LoRA config
 lora_r: 16
 lora_alpha: 32
 lora_dropout: 0.05
 
-# Critical: Specify target modules for LoRA injection
-target_modules:
+# Critical: Specify target modules for LoRA injection (Axolotl uses lora_target_modules, NOT target_modules)
+lora_target_modules:
   - q_proj
   - k_proj
   - v_proj
@@ -528,7 +668,8 @@ target_modules:
 > **Notes:**
 > - The `datasets` field must be a list (plural). Each dataset entry should have a `path` and `type`. For instruction/response format, use `type: alpaca`.
 > - **Dataset Format Requirement:** When using `type: alpaca`, your dataset **must** have `instruction`, `input`, and `output` fields (not `response`). The `input` field can be an empty string `""` if not needed.
-> - **`target_modules` is Required:** Axolotl cannot autodetect which layers to apply LoRA on for most models. You **must** specify `target_modules` to avoid the error: `ValueError: No target_modules passed but also no target_parameters found.`
+> - **`lora_target_modules` is Required:** Axolotl cannot autodetect which layers to apply LoRA on for most models. You **must** specify `lora_target_modules` (NOT `target_modules`) to avoid the error: `ValueError: No target_modules passed but also no target_parameters found.`
+> - **Important:** Axolotl uses the key `lora_target_modules`, not `target_modules`. Using `target_modules` will be ignored by Axolotl.
 > - **Different models require different target modules** (see table below)
 > - Axolotl requires at least two of these batch parameters: `micro_batch_size`, `gradient_accumulation_steps`, or `batch_size`. The config above uses `micro_batch_size` and `gradient_accumulation_steps`.
 > - `micro_batch_size: 1` means process 1 example at a time per GPU
@@ -537,10 +678,10 @@ target_modules:
 
 ### Target Modules by Model Family
 
-Different model architectures use different layer names. Here are the common `target_modules` for popular models:
+Different model architectures use different layer names. Here are the common modules to use in `lora_target_modules` for popular models:
 
-| Model Family | Target Modules |
-|--------------|----------------|
+| Model Family | `lora_target_modules` Values |
+|--------------|------------------------------|
 | **LLaMA / Llama-2 / Llama-3** | `q_proj`, `k_proj`, `v_proj`, `o_proj` |
 | **Mistral / Mixtral** | `q_proj`, `k_proj`, `v_proj`, `o_proj` |
 | **Falcon** | `query_key_value` |
@@ -548,20 +689,75 @@ Different model architectures use different layer names. Here are the common `ta
 | **Phi** | `q_proj`, `k_proj`, `v_proj`, `dense` |
 | **Gemma** | `q_proj`, `k_proj`, `v_proj`, `o_proj` |
 
+### Key Name Reference
+
+| Key | Status | Usage |
+|-----|--------|-------|
+| `lora_target_modules` | ✅ **Correct** | Axolotl reads this key and passes it to PEFT |
+| `target_modules` | ❌ **Wrong** | Ignored by Axolotl, will cause the error above |
+
+> **Critical:** Always use `lora_target_modules` (not `target_modules`) in your Axolotl config. The key name matters! Using `target_modules` will be silently ignored, causing the `ValueError: No target_modules passed` error.
+>
 > **Tip:** If you're unsure which modules to use for your model, check the model's architecture documentation or inspect the model's layer names using:
 > ```python
 > from transformers import AutoModel
 > model = AutoModel.from_pretrained("model-name")
 > print([name for name, _ in model.named_modules()])
 > ```
+> Then use the matching layer names in your `lora_target_modules` list.
 
 ---
 
-## 8. Run Training
+## 9. Run Training
 
 ```bash
 axolotl train configs/mistral-lora.yml
 ```
+
+### Training Progress Example
+
+When training starts, you'll see output like this:
+
+```
+[INFO] Loading model and tokenizer...
+[INFO] Preparing dataset...
+[INFO] Starting training...
+
+ 78%|███████████████████████████████████████████▋  | 156/200 [06:52<01:48,  2.46s/it]
+
+{'loss': 0.0001, 
+ 'grad_norm': 0.0014, 
+ 'learning_rate': 2.60e-05, 
+ 'memory/max_mem_active(gib)': 14.56, 
+ 'memory/max_mem_allocated(gib)': 14.56, 
+ 'memory/device_mem_reserved(gib)': 14.6, 
+ 'epoch': 52.0}
+
+[INFO] Saving model checkpoint to ./outputs/mistral-lora/checkpoint-156
+[INFO] Saving Trainer.data_collator.tokenizer...
+```
+
+**Understanding the output:**
+
+| Metric | Description | What to Look For |
+|--------|-------------|------------------|
+| **Progress bar** | Shows `78%` completion, `156/200` steps | Completion percentage and steps remaining |
+| **loss** | Training loss value | Should decrease over time (lower is better) |
+| **grad_norm** | Gradient norm | Should be stable (very low values may indicate underfitting) |
+| **learning_rate** | Current learning rate | Decays according to your schedule |
+| **memory/max_mem_active(gib)** | GPU memory used | Monitor to ensure you're not running out of memory |
+| **memory/device_mem_reserved(gib)** | GPU memory reserved | Total GPU memory allocated |
+| **epoch** | Current epoch number | Number of times the model has seen the entire dataset |
+| **Checkpoints** | Saved model states | Saved periodically for recovery and evaluation |
+
+**Training indicators:**
+- ✅ **Good signs**: Loss decreasing steadily, stable memory usage, checkpoints saving successfully
+- ⚠️ **Watch out**: Loss not decreasing (may need more training steps or higher learning rate), memory errors (reduce batch size), loss increasing (overfitting - reduce learning rate or add dropout)
+
+**Training time:** Depending on your dataset size and GPU, training can take:
+- Small datasets (20 examples): 5-15 minutes
+- Medium datasets (100-500 examples): 30 minutes - 2 hours
+- Large datasets (1000+ examples): Several hours
 
 The trained adapter will be saved in:
 
@@ -569,15 +765,31 @@ The trained adapter will be saved in:
 outputs/mistral-lora/
 ```
 
+Inside this directory, you'll find:
+- `checkpoint-XXX/`: Training checkpoints saved during training
+- `adapter_model.safetensors`: Final LoRA adapter weights
+- `adapter_config.json`: LoRA adapter configuration
+- `tokenizer files`: Tokenizer configuration
+
 ### Common Training Errors and Solutions
+
+**Error: `401 Unauthorized` or `Repository Not Found: meta-llama/Llama-3-8B-Instruct`**
+
+This error occurs when you try to download a model that requires authentication or license acceptance. **Solution:** 
+1. Configure Hugging Face access (see Section 6)
+2. Run `huggingface-cli login` and paste your token
+3. Accept the model license on Hugging Face (visit the model's page and click "Agree and access repository")
+4. Verify access: `python3 -c "from transformers import AutoConfig; AutoConfig.from_pretrained('model-name')"`
+
+**Alternative:** Use a public model that doesn't require authentication (e.g., `mistralai/Mistral-7B-Instruct-v0.3` or `microsoft/Phi-3-mini-4k-instruct`).
 
 **Error: `ValueError: No target_modules passed but also no target_parameters found.`**
 
-This error occurs when Axolotl cannot determine which layers to apply LoRA on. **Solution:** Add `target_modules` to your config file (see the config example above). Different models require different target modules - refer to the "Target Modules by Model Family" table in Section 7.
+This error occurs when Axolotl cannot determine which layers to apply LoRA on. **Solution:** Add `lora_target_modules` (NOT `target_modules`) to your config file (see the config example above). **Important:** Axolotl uses `lora_target_modules` as the key name - using `target_modules` will be ignored. Different models require different target modules - refer to the "Target Modules by Model Family" table in Section 8.
 
 **Error: `KeyError: 'output'` or dataset format errors**
 
-This means your dataset doesn't match the expected format. **Solution:** When using `type: alpaca`, ensure each line has `instruction`, `input`, and `output` fields (not `response`). See Section 6 for the correct dataset format.
+This means your dataset doesn't match the expected format. **Solution:** When using `type: alpaca`, ensure each line has `instruction`, `input`, and `output` fields (not `response`). See Section 7 for the correct dataset format.
 
 **Error: `At least two of micro_batch_size, gradient_accumulation_steps, batch_size must be set`**
 
@@ -593,7 +805,7 @@ If you encounter GPU memory errors, try:
 
 ---
 
-## 9. Validate Model Performance with Inference
+## 10. Validate Model Performance with Inference
 
 ### Purpose: Verify the Model Learned from Your Dataset
 
@@ -609,6 +821,64 @@ If you encounter GPU memory errors, try:
 ```bash
 axolotl inference configs/mistral-lora.yml
 ```
+
+### Inference Output Example
+
+When you run inference, you'll see output like this:
+
+```
+[INFO] Loading config...
+[INFO] Loading tokenizer... mistralai/Mistral-7B-Instruct-v0.3
+[INFO] Loading model...
+Loading checkpoint shards: 100%|████████████████████| 3/3 [00:00<00:00, 29.74it/s]
+[INFO] Converting modules to torch.bfloat16
+trainable params: 13,631,488 || all params: 7,261,655,040 || trainable%: 0.1877
+================================================================================
+Give me an instruction (Ctrl + D to submit):
+```
+
+**What this shows:**
+- **Config loaded**: Your training configuration is loaded and validated
+- **Tokenizer loaded**: The model's tokenizer is ready to process text
+- **Model loaded**: The base model with your trained LoRA adapter is loaded into GPU memory
+- **Checkpoint shards**: Large models are split into multiple files (shards) for efficient loading
+- **Trainable params**: `13,631,488` trainable parameters out of `7,261,655,040` total (0.19%) - this demonstrates LoRA's efficiency: only a tiny fraction of parameters were trained
+- **Interactive prompt**: Ready to accept instructions for inference
+
+> **Note:** The "trainable params" line shows LoRA's key advantage: you only trained 13.6 million parameters (0.19% of the model) instead of all 7.2 billion parameters, making fine-tuning much more memory-efficient and faster.
+
+**Using the interactive prompt:**
+
+1. When you see the prompt `Give me an instruction (Ctrl + D to submit):`, type your question or instruction
+2. Press `Enter` to go to a new line (optional, for multi-line prompts)
+3. Press `Ctrl + D` to submit your instruction
+4. The model will generate a response based on your fine-tuned adapter
+5. The prompt will appear again for the next instruction
+
+**Example interaction:**
+
+```
+Give me an instruction (Ctrl + D to submit): How do I restart the analytics microservice safely?
+<Press Ctrl + D>
+
+Response:
+1) Check for active jobs in the queue.
+2) Pause message ingestion.
+3) Run 'systemctl restart analytics-ms'.
+4) Monitor logs for 2 minutes.
+5) Resume message ingestion.
+
+Give me an instruction (Ctrl + D to submit): What is 'gradient accumulation'?
+<Press Ctrl + D>
+
+Response:
+Gradient accumulation simulates a larger batch size by summing gradients over multiple forward passes before updating model weights.
+
+Give me an instruction (Ctrl + D to submit): 
+<Press Ctrl + C to exit>
+```
+
+> **Tip:** You can test multiple prompts in the same session. After each response, the prompt appears again. To exit, press `Ctrl + C`.
 
 ### Example Validation Prompts
 
@@ -681,7 +951,7 @@ How do I report a production incident?
 
 ---
 
-## 10. Optional: Export LoRA to a Fully Merged Model
+## 11. Optional: Export LoRA to a Fully Merged Model
 
 ```bash
 axolotl merge-lora configs/mistral-lora.yml
@@ -689,7 +959,7 @@ axolotl merge-lora configs/mistral-lora.yml
 
 ---
 
-## 11. Support & Contributions
+## 12. Support & Contributions
 
 * Axolotl Docs: [https://docs.axolotl.ai](https://docs.axolotl.ai)
 * Discord Community: [https://discord.gg/HhrNrHJPRb](https://discord.gg/HhrNrHJPRb)
