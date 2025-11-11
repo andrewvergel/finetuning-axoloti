@@ -445,7 +445,11 @@ axolotl fetch examples
 
 ## 6. Create a Sample Dataset
 
-Axolotl expects datasets in JSONL format.
+Axolotl expects datasets in JSONL format. When using `type: alpaca` in the config, each line must follow the Alpaca format with three fields:
+
+- `instruction`: The task or question
+- `input`: Additional context (can be an empty string `""` if not needed)
+- `output`: The expected response
 
 Create the file:
 
@@ -456,27 +460,29 @@ data/train.jsonl
 Example (`train.jsonl`):
 
 ```json
-{"instruction": "How do I restart the analytics microservice safely?", "response": "1) Check for active jobs in the queue.\n2) Pause message ingestion.\n3) Run 'systemctl restart analytics-ms'.\n4) Monitor logs for 2 minutes.\n5) Resume message ingestion."}
-{"instruction": "Summarize what a LoRA adapter is.", "response": "A LoRA adapter is a small set of additional trainable parameters that enable fine-tuning a large model efficiently without modifying the original model weights."}
-{"instruction": "How do I request access to the staging environment?", "response": "1) Open a ticket under 'Access Request'.\n2) Specify 'Staging SSH + Database read-only'.\n3) Get approval from Engineering Manager.\n4) DevOps will grant access within 24 hours."}
-{"instruction": "Explain bfloat16 in simple terms.", "response": "bfloat16 is a numerical format that uses fewer bits than float32, which reduces memory usage and speeds up training, while still keeping enough precision for deep learning."}
-{"instruction": "What is the purpose of early stopping during training?", "response": "Early stopping prevents overfitting by halting training when validation performance stops improving."}
-{"instruction": "How do I report a production incident?", "response": "1) Go to the Incident Management portal.\n2) Create a new incident ticket.\n3) Describe the problem, impact, and affected services.\n4) Assign priority based on severity.\n5) Notify on-call team via Slack #ops-alerts."}
-{"instruction": "Explain what gradient checkpointing does.", "response": "Gradient checkpointing trades computation for memory by recomputing intermediate activations during backpropagation, allowing training of larger models on limited GPU memory."}
-{"instruction": "How do I rotate API tokens securely?", "response": "1) Generate a new token in the IAM portal.\n2) Update the service configuration.\n3) Redeploy the service.\n4) Verify the service is healthy.\n5) Revoke the old token."}
-{"instruction": "Describe the role of the 'validation split' in training.", "response": "The validation split allocates a portion of the dataset to evaluate model performance during training without influencing the learning process."}
-{"instruction": "How do I request a database schema change?", "response": "1) Create a DB change proposal document.\n2) Submit for review to the Data Engineering team.\n3) Schedule a migration window.\n4) Apply changes via Flyway.\n5) Run post-migration tests."}
-{"instruction": "What is CUDA used for in LLM training?", "response": "CUDA allows deep learning frameworks to run computations on NVIDIA GPUs, dramatically accelerating tensor operations required for training."}
-{"instruction": "How do I document a new internal procedure?", "response": "1) Create a new page in the Knowledge Base.\n2) Add step-by-step instructions.\n3) Include screenshots or command examples.\n4) Request peer review.\n5) Publish and share with the team."}
-{"instruction": "Explain why dataset diversity matters in fine-tuning.", "response": "Dataset diversity improves the model’s ability to generalize, preventing it from overfitting to narrow patterns and producing more robust responses."}
-{"instruction": "How do I test that a deployment was successful?", "response": "1) Verify service health metrics.\n2) Run automated smoke tests.\n3) Validate logs show no new errors.\n4) Confirm that request latency remains stable.\n5) Notify stakeholders deployment is complete."}
-{"instruction": "What is 'gradient accumulation'?", "response": "Gradient accumulation simulates a larger batch size by summing gradients over multiple forward passes before updating model weights."}
-{"instruction": "How do I rollback a deployment?", "response": "1) Identify last stable release.\n2) Redeploy using previous container image.\n3) Clear related caches.\n4) Validate logs and metrics.\n5) Announce rollback completion in #release-status."}
-{"instruction": "Explain the concept of model hallucination.", "response": "Hallucination occurs when a model produces confident but factually incorrect or fabricated information due to gaps or ambiguity in the input or training data."}
-{"instruction": "How do I clean old logs in a Linux server?", "response": "1) Run `find /var/log -type f -mtime +30 -exec gzip {} \\;`.\n2) Move compressed logs to /backup/logs.\n3) Update logrotate configuration.\n4) Document cleanup."}
-{"instruction": "Why use LoRA instead of full fine-tuning?", "response": "LoRA is significantly more memory-efficient and faster because it trains only small adapter layers instead of updating all model parameters."}
-{"instruction": "How do I verify the fine-tuned model is performing correctly?", "response": "1) Run inference using known test prompts.\n2) Compare outputs with expected responses.\n3) Assess consistency, correctness, and tone.\n4) Log evaluation notes.\n5) Approve for deployment if satisfactory."}
+{"instruction": "How do I restart the analytics microservice safely?", "input": "", "output": "1) Check for active jobs in the queue.\n2) Pause message ingestion.\n3) Run 'systemctl restart analytics-ms'.\n4) Monitor logs for 2 minutes.\n5) Resume message ingestion."}
+{"instruction": "Summarize what a LoRA adapter is.", "input": "", "output": "A LoRA adapter is a small set of additional trainable parameters that enable fine-tuning a large model efficiently without modifying the original model weights."}
+{"instruction": "How do I request access to the staging environment?", "input": "", "output": "1) Open a ticket under 'Access Request'.\n2) Specify 'Staging SSH + Database read-only'.\n3) Get approval from Engineering Manager.\n4) DevOps will grant access within 24 hours."}
+{"instruction": "Explain bfloat16 in simple terms.", "input": "", "output": "bfloat16 is a numerical format that uses fewer bits than float32, which reduces memory usage and speeds up training, while still keeping enough precision for deep learning."}
+{"instruction": "What is the purpose of early stopping during training?", "input": "", "output": "Early stopping prevents overfitting by halting training when validation performance stops improving."}
+{"instruction": "How do I report a production incident?", "input": "", "output": "1) Go to the Incident Management portal.\n2) Create a new incident ticket.\n3) Describe the problem, impact, and affected services.\n4) Assign priority based on severity.\n5) Notify on-call team via Slack #ops-alerts."}
+{"instruction": "Explain what gradient checkpointing does.", "input": "", "output": "Gradient checkpointing trades computation for memory by recomputing intermediate activations during backpropagation, allowing training of larger models on limited GPU memory."}
+{"instruction": "How do I rotate API tokens securely?", "input": "", "output": "1) Generate a new token in the IAM portal.\n2) Update the service configuration.\n3) Redeploy the service.\n4) Verify the service is healthy.\n5) Revoke the old token."}
+{"instruction": "Describe the role of the 'validation split' in training.", "input": "", "output": "The validation split allocates a portion of the dataset to evaluate model performance during training without influencing the learning process."}
+{"instruction": "How do I request a database schema change?", "input": "", "output": "1) Create a DB change proposal document.\n2) Submit for review to the Data Engineering team.\n3) Schedule a migration window.\n4) Apply changes via Flyway.\n5) Run post-migration tests."}
+{"instruction": "What is CUDA used for in LLM training?", "input": "", "output": "CUDA allows deep learning frameworks to run computations on NVIDIA GPUs, dramatically accelerating tensor operations required for training."}
+{"instruction": "How do I document a new internal procedure?", "input": "", "output": "1) Create a new page in the Knowledge Base.\n2) Add step-by-step instructions.\n3) Include screenshots or command examples.\n4) Request peer review.\n5) Publish and share with the team."}
+{"instruction": "Explain why dataset diversity matters in fine-tuning.", "input": "", "output": "Dataset diversity improves the model's ability to generalize, preventing it from overfitting to narrow patterns and producing more robust responses."}
+{"instruction": "How do I test that a deployment was successful?", "input": "", "output": "1) Verify service health metrics.\n2) Run automated smoke tests.\n3) Validate logs show no new errors.\n4) Confirm that request latency remains stable.\n5) Notify stakeholders deployment is complete."}
+{"instruction": "What is 'gradient accumulation'?", "input": "", "output": "Gradient accumulation simulates a larger batch size by summing gradients over multiple forward passes before updating model weights."}
+{"instruction": "How do I rollback a deployment?", "input": "", "output": "1) Identify last stable release.\n2) Redeploy using previous container image.\n3) Clear related caches.\n4) Validate logs and metrics.\n5) Announce rollback completion in #release-status."}
+{"instruction": "Explain the concept of model hallucination.", "input": "", "output": "Hallucination occurs when a model produces confident but factually incorrect or fabricated information due to gaps or ambiguity in the input or training data."}
+{"instruction": "How do I clean old logs in a Linux server?", "input": "", "output": "1) Run `find /var/log -type f -mtime +30 -exec gzip {} \\;`.\n2) Move compressed logs to /backup/logs.\n3) Update logrotate configuration.\n4) Document cleanup."}
+{"instruction": "Why use LoRA instead of full fine-tuning?", "input": "", "output": "LoRA is significantly more memory-efficient and faster because it trains only small adapter layers instead of updating all model parameters."}
+{"instruction": "How do I verify the fine-tuned model is performing correctly?", "input": "", "output": "1) Run inference using known test prompts.\n2) Compare outputs with expected responses.\n3) Assess consistency, correctness, and tone.\n4) Log evaluation notes.\n5) Approve for deployment if satisfactory."}
 ```
+
+> **Important:** When using `type: alpaca` in the config file, the dataset **must** have `instruction`, `input`, and `output` fields. The `input` field can be an empty string `""` if no additional context is needed. Do not use `response` - it must be `output`.
 
 ---
 
@@ -509,10 +515,12 @@ train:
 ```
 
 > **Notes:**
-> - The `datasets` field must be a list (plural). Each dataset entry should have a `path` and `type`. For instruction/response format (like in `train.jsonl`), use `type: alpaca`.
+> - The `datasets` field must be a list (plural). Each dataset entry should have a `path` and `type`. For instruction/response format, use `type: alpaca`.
+> - **Dataset Format Requirement:** When using `type: alpaca`, your dataset **must** have `instruction`, `input`, and `output` fields (not `response`). The `input` field can be an empty string `""` if not needed.
 > - Axolotl requires at least two of these batch parameters: `micro_batch_size`, `gradient_accumulation_steps`, or `batch_size`. The config above uses `micro_batch_size` and `gradient_accumulation_steps`.
 > - `micro_batch_size: 1` means process 1 example at a time per GPU
 > - `gradient_accumulation_steps: 8` means accumulate gradients over 8 steps before updating weights (effective batch size = 1 × 8 = 8)
+> - You can change `base_model` to any supported model (e.g., `mistralai/Mistral-7B-Instruct-v0.3`, `meta-llama/Llama-3-8B-Instruct`, etc.)
 
 ---
 
