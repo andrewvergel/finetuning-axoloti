@@ -1,6 +1,8 @@
 base_model: meta-llama/Llama-3-8B-Instruct
 adapter: lora
-dataset: data/train.jsonl
+datasets:
+  - path: data/train.jsonl
+    type: alpaca
 dataset_format: instruction
 output_dir: ./outputs/llama3-lora
 train:

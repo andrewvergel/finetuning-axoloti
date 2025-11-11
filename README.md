@@ -493,7 +493,9 @@ Example LoRA training config:
 ```yaml
 base_model: meta-llama/Llama-3-8B-Instruct
 adapter: lora
-dataset: data/train.jsonl
+datasets:
+  - path: data/train.jsonl
+    type: alpaca
 dataset_format: instruction
 output_dir: ./outputs/llama3-lora
 train:
@@ -505,6 +507,8 @@ train:
   lora_alpha: 32
   lora_dropout: 0.05
 ```
+
+> **Note:** The `datasets` field must be a list (plural). Each dataset entry should have a `path` and `type`. For instruction/response format (like in `train.jsonl`), use `type: alpaca`.
 
 ---
 
