@@ -500,15 +500,19 @@ dataset_format: instruction
 output_dir: ./outputs/llama3-lora
 train:
   max_steps: 200
-  batch_size: 1
-  gradient_accumulation: 8
+  micro_batch_size: 1
+  gradient_accumulation_steps: 8
   learning_rate: 2e-4
   lora_r: 16
   lora_alpha: 32
   lora_dropout: 0.05
 ```
 
-> **Note:** The `datasets` field must be a list (plural). Each dataset entry should have a `path` and `type`. For instruction/response format (like in `train.jsonl`), use `type: alpaca`.
+> **Notes:**
+> - The `datasets` field must be a list (plural). Each dataset entry should have a `path` and `type`. For instruction/response format (like in `train.jsonl`), use `type: alpaca`.
+> - Axolotl requires at least two of these batch parameters: `micro_batch_size`, `gradient_accumulation_steps`, or `batch_size`. The config above uses `micro_batch_size` and `gradient_accumulation_steps`.
+> - `micro_batch_size: 1` means process 1 example at a time per GPU
+> - `gradient_accumulation_steps: 8` means accumulate gradients over 8 steps before updating weights (effective batch size = 1 × 8 = 8)
 
 ---
 
