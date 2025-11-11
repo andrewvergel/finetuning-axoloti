@@ -38,7 +38,7 @@ This guide covers:
 > If unsure whether CUDA is installed:
 ```bash
 nvidia-smi
-````
+```
 
 ---
 
@@ -72,12 +72,370 @@ cd finetuning-axoloti
 
 ## 5. Install Axolotl
 
+### Step 1: Install Build Dependencies
+
 ```bash
 pip install -U packaging==23.2 setuptools==75.8.0 wheel ninja
+```
+
+### Step 2: Install PyTorch (Required before flash-attn)
+
+PyTorch must be installed first because `flash-attn` requires it during installation.
+
+**For CUDA 11.8:**
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+**For CUDA 12.1:**
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+**To check your CUDA version:**
+
+The easiest way is using `nvidia-smi` (should be available if NVIDIA drivers are installed):
+```bash
+nvidia-smi
+```
+Look for "CUDA Version" in the top-right corner of the output.
+
+Alternatively, after installing PyTorch, you can check which CUDA version PyTorch detected:
+```bash
+python -c "import torch; print(torch.version.cuda)"
+```
+
+> **Note:** If you're unsure which CUDA version to use, try CUDA 11.8 first (most compatible). If you encounter compatibility issues, try CUDA 12.1. PyTorch will work with either version as long as your NVIDIA drivers support it.
+
+### Step 3: Install Axolotl
+
+**Important:** Both `flash-attn` and `deepspeed` require the CUDA Toolkit (not just NVIDIA drivers) to compile. You need `nvcc` compiler and `CUDA_HOME` environment variable set.
+
+**Option A: Install Axolotl without Flash Attention (Easiest - Works without CUDA Toolkit)**
+
+If you don't have the CUDA Toolkit installed or encounter compilation issues, install without `flash-attn`:
+
+```bash
+pip install --no-build-isolation axolotl
+```
+
+> **Note:** This will work fine for training, but `flash-attn` provides significant speed improvements and memory savings. You can add it later if you install the CUDA Toolkit.
+
+**Option B: Install Axolotl with Flash Attention (Requires CUDA Toolkit)**
+
+`flash-attn` requires `CUDA_HOME` to be set. First, check if you have the CUDA Toolkit installed:
+
+```bash
+# Check if nvcc is available
+nvcc --version
+```
+
+If `nvcc` is not found, you'll see a message like:
+```
+Command 'nvcc' not found, but can be installed with:
+apt install nvidia-cuda-toolkit
+```
+
+You have two options:
+1. Install CUDA Toolkit (see instructions below)
+2. Use Option A (install without flash-attn) - **Recommended for getting started quickly**
+
+**If nvcc is available, locate your CUDA installation:**
+
+```bash
+# Find CUDA installation path (usually /usr/local/cuda or /usr/local/cuda-XX.X)
+ls -la /usr/local/ | grep cuda
+
+# Or check common locations
+which nvcc
+readlink -f $(which nvcc)  # This will show the CUDA path
+```
+
+**Set `CUDA_HOME` environment variable:**
+
+The path depends on how CUDA was installed. Try these in order:
+
+```bash
+# Method 1: Automatic detection (works for most installations)
+export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
+
+# Method 2: If installed via apt (usually one of these)
+export CUDA_HOME=/usr/lib/cuda
+# OR
+export CUDA_HOME=/usr
+
+# Method 3: If installed from NVIDIA repo (version-specific)
+export CUDA_HOME=/usr/local/cuda-12.1  # For CUDA 12.1
+# OR
+export CUDA_HOME=/usr/local/cuda-11.8  # For CUDA 11.8
+# OR
+export CUDA_HOME=/usr/local/cuda       # If symlink exists
+```
+
+**Verify CUDA_HOME is set correctly:**
+```bash
+echo $CUDA_HOME
+ls $CUDA_HOME/bin/nvcc  # Should show the nvcc compiler
+```
+
+**Make `CUDA_HOME` persistent across sessions:**
+
+After finding the correct CUDA_HOME path, add it to your shell configuration:
+
+```bash
+# Add to ~/.bashrc (replace with your actual CUDA_HOME path)
+echo 'export CUDA_HOME=$(dirname $(dirname $(which nvcc)))' >> ~/.bashrc
+# OR if automatic detection doesn't work, use the specific path:
+# echo 'export CUDA_HOME=/usr/lib/cuda' >> ~/.bashrc
+
+source ~/.bashrc
+```
+
+> **Note:** If using automatic detection in `.bashrc`, make sure `nvcc` is in your PATH. Alternatively, use the specific path you verified works.
+
+**Verify requirements before installing flash-attn:**
+
+Before installing, verify that:
+1. `nvcc` is accessible and shows CUDA 11.7 or above
+2. `CUDA_HOME` is set correctly
+
+```bash
+# Check nvcc version (must be 11.7+)
+nvcc --version
+
+# Verify CUDA_HOME is set
+echo $CUDA_HOME
+
+# Verify nvcc can be found from CUDA_HOME
+ls $CUDA_HOME/bin/nvcc
+
+# Test that flash-attn can detect CUDA
+python -c "import torch; print(f'PyTorch CUDA version: {torch.version.cuda}')"
+```
+
+**Now install Axolotl with Flash Attention:**
+
+If Axolotl is already installed (without flash-attn), you have two options:
+
+**Option 1: Upgrade existing installation:**
+```bash
+pip install --upgrade --no-build-isolation axolotl[flash-attn]
+```
+
+**Option 2: Uninstall and reinstall:**
+```bash
+pip uninstall axolotl -y
+pip install --no-build-isolation axolotl[flash-attn]
+```
+
+**If installing fresh:**
+```bash
+pip install --no-build-isolation axolotl[flash-attn]
+```
+
+**Troubleshooting flash-attn installation:**
+
+**Error 1: `RuntimeError: FlashAttention is only supported on CUDA 11.7 and above`**
+
+This means `nvcc` either:
+- Is not found in PATH
+- Shows a version below 11.7
+- Cannot be detected by flash-attn's setup script
+
+**Solutions:**
+
+1. **Verify nvcc is accessible:**
+   ```bash
+   nvcc -V  # or nvcc --version
+   which nvcc
+   ```
+   If `which nvcc` returns nothing, nvcc is not in PATH.
+
+2. **If nvcc is not in PATH after installation:**
+   ```bash
+   # Find where nvcc was installed
+   dpkg -L nvidia-cuda-toolkit | grep bin/nvcc
+   
+   # Add to PATH (usually /usr/bin)
+   export PATH=/usr/bin:$PATH
+   
+   # Or if in /usr/lib/cuda/bin
+   export PATH=/usr/lib/cuda/bin:$PATH
+   
+   # Verify it works
+   nvcc --version
+   ```
+
+3. **Check CUDA version compatibility:**
+   ```bash
+   nvcc --version
+   ```
+   The version must be 11.7 or above. If you see 11.5 or lower:
+   - Uninstall: `sudo apt remove nvidia-cuda-toolkit`
+   - Install a specific version using Method 2 (see below)
+
+4. **Verify CUDA_HOME is set and correct:**
+   ```bash
+   echo $CUDA_HOME
+   ls $CUDA_HOME/bin/nvcc
+   ```
+   If `CUDA_HOME` is not set or points to wrong location, set it (see instructions above).
+
+5. **Check PyTorch CUDA version:**
+   ```bash
+   python -c "import torch; print(f'PyTorch CUDA: {torch.version.cuda}')"
+   ```
+   This should be compatible with your nvcc version.
+
+6. **If all else fails, install without flash-attn:**
+   ```bash
+   # Uninstall axolotl first if needed
+   pip uninstall axolotl -y
+   
+   # Install without flash-attn (works fine, just uses more memory)
+   pip install --no-build-isolation axolotl
+   ```
+   You can add flash-attn later once CUDA is properly configured.
+
+**Error 2: `CUDA_HOME environment variable is not set`**
+
+This means the environment variable is not set. Set it using the instructions in the "Set CUDA_HOME" section above, then try again.
+
+**Option C: Install Axolotl with Flash Attention and DeepSpeed (Multi-GPU training)**
+
+Follow the same `CUDA_HOME` setup as Option B, then:
+
+```bash
 pip install --no-build-isolation axolotl[flash-attn,deepspeed]
 ```
 
-Fetch example configs:
+> **Note:** DeepSpeed is only needed for multi-GPU training or very large models. For single GPU LoRA fine-tuning, it's optional.
+
+**Installing CUDA Toolkit (if not available):**
+
+**Method 1: Simple apt installation (Recommended)**
+
+The easiest way to install the CUDA Toolkit:
+
+```bash
+sudo apt update
+sudo apt install nvidia-cuda-toolkit
+```
+
+> **Note:** The version installed via `apt` may vary. On Ubuntu 22.04, it typically installs CUDA 11.5 or 12.x. **Verify the installed version is 11.7 or above** (required for flash-attn) after installation. If you get an older version, use Method 2 to install a specific version.
+
+**Check available CUDA Toolkit version before installing:**
+```bash
+# Check what version would be installed
+apt-cache policy nvidia-cuda-toolkit
+
+# Or check available versions
+apt-cache madison nvidia-cuda-toolkit
+```
+
+After installation, verify and check CUDA version:
+
+```bash
+nvcc --version
+```
+
+**Important:** `flash-attn` requires CUDA 11.7 or above. Check the output of `nvcc --version` to ensure you have a compatible version. If you see CUDA 11.6 or lower, you'll need to install a newer version.
+
+**If `nvcc` is not in PATH after installation:**
+
+After installing via `apt`, you may need to add it to your PATH:
+
+```bash
+# Check if nvcc is in standard paths
+which nvcc
+
+# If not found, add to PATH (usually /usr/bin or /usr/local/cuda/bin)
+export PATH=/usr/bin:$PATH
+# OR if installed in /usr/lib/cuda
+export PATH=/usr/lib/cuda/bin:$PATH
+
+# Verify nvcc is now accessible
+nvcc --version
+```
+
+**Make PATH persistent:**
+```bash
+echo 'export PATH=/usr/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Find CUDA installation path after apt install:**
+
+When installed via `apt`, CUDA is typically in `/usr/lib/cuda` or `/usr`. Find it with:
+
+```bash
+# Method 1: Check where nvcc is located
+which nvcc
+readlink -f $(which nvcc)  # Shows full path
+
+# Method 2: Check common apt-installed locations
+ls -la /usr/lib/cuda 2>/dev/null
+ls -la /usr/local/cuda 2>/dev/null
+
+# Method 3: Use dpkg to find installation
+dpkg -L nvidia-cuda-toolkit | grep bin/nvcc
+```
+
+**Set CUDA_HOME for apt-installed CUDA:**
+
+```bash
+# Usually one of these paths works:
+export CUDA_HOME=/usr/lib/cuda
+# OR
+export CUDA_HOME=/usr
+
+# OR use automatic detection:
+export CUDA_HOME=$(dirname $(dirname $(which nvcc)))
+
+# Verify it's set correctly
+echo $CUDA_HOME
+ls $CUDA_HOME/bin/nvcc
+```
+
+**Method 2: Install specific CUDA version (Alternative)**
+
+If you need a specific CUDA version (e.g., 12.1 or 11.8):
+
+```bash
+# For Ubuntu 22.04
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get -y install cuda-toolkit-12-1  # Or cuda-toolkit-11-8 for CUDA 11.8
+
+# Add to PATH
+export PATH=/usr/local/cuda-12.1/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda-12.1
+```
+
+> **Important Notes:**
+> - **NVIDIA Drivers vs CUDA Toolkit:** Having NVIDIA drivers (checked with `nvidia-smi`) allows PyTorch to use the GPU, but doesn't provide `nvcc` compiler needed for `flash-attn`/`deepspeed`.
+> - **Training without flash-attn:** Option A will work perfectly fine for training. You'll just use more memory and train slightly slower.
+> - **Recommended approach:** Start with Option A to get everything working, then add `flash-attn` later if needed for better performance.
+
+### Step 4: Verify Axolotl Installation
+
+Check that Axolotl was installed correctly:
+
+```bash
+axolotl --version
+```
+
+Alternatively, you can check the installed version using pip:
+
+```bash
+pip show axolotl
+```
+
+You should see the Axolotl version number and installation details. If the `axolotl` command is not found, verify that your Python environment is activated and Axolotl is installed correctly.
+
+### Step 5: Fetch Example Configs
 
 ```bash
 axolotl fetch examples
